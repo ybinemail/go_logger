@@ -4,11 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/robfig/cron/v3"
 	//"io/ioutil"
 )
 
@@ -104,28 +107,55 @@ func buildUrl(res []resource) []string {
 
 //拼接日志
 func makeLog(current, refer, ua string) string {
-	u := url.Values{}
-	u.Set("time", "1")
-	u.Set("url", current)
-	u.Set("refer", refer)
-	u.Set("ua", ua)
-	uid := randInt(100001, 999999)
-	// 模拟用户uid
-	u.Set("uid", strconv.Itoa(uid))
-	paramsStr := u.Encode()
-	randip := randIP()
-	logTmp := "10.100.14.104 - - [19/Mar/2021 15:19:01 +0800] \"OPTIONS /nginx_access.log?{$paramsStr} HTTP/1.1\" 200 43 \"-\" \"{$ua}\" \"-\""
-	log := strings.Replace(logTmp, "{$paramsStr}", paramsStr, -1)
-	log = strings.Replace(log, "{$ua}", ua, -1)
+
+	randIpStr := randIP()
+	logTimeStr, logTimeUnix := logTime()
+	log := ""
+	//"10.100.14.104 - - [19/Mar/2021 15:19:01 +0800] \"OPTIONS /nginx_access.log?{$paramsStr} HTTP/1.1\" 200 43 \"-\" \"{$ua}\" \"-\""
+	logFormatStr := "%s - - [%s  ++0800  --%s] \"OPTIONS /nginx_access.log? %s HTTP/1.1\" %d %s \"-\" \"%s\" \"-\""
+	randNum := randInt(1, 100)
+	switch {
+	case randNum%7 == 0:
+		//502,
+		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, logTimeUnix, "", http.StatusBadGateway, http.StatusText(http.StatusBadGateway), ua)
+	case randNum%11 == 0:
+
+		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, logTimeUnix, "", http.StatusNotFound, http.StatusText(http.StatusNotFound), ua)
+	case randNum%13 == 0:
+		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, logTimeUnix, "", http.StatusBadRequest, http.StatusText(http.StatusBadRequest), ua)
+	default:
+		u := url.Values{}
+		u.Set("time", logTimeUnix)
+		u.Set("url", current)
+		u.Set("refer", refer)
+		u.Set("ua", ua)
+		uid := randInt(100001, 999999)
+		// 模拟用户uid
+		u.Set("uid", strconv.Itoa(uid))
+		paramsStr := u.Encode()
+
+		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, logTimeUnix, paramsStr, http.StatusOK, http.StatusText(http.StatusOK), ua)
+	}
+
 	return log
 }
 
+//随机IP
 func randIP() string {
-	ipSli := make([]string, 4)
+	var ipSli []string
 	for i := 0; i < 4; i++ {
 		ipSli = append(ipSli, ipNums[randInt(0, len(ipNums)-1)])
 	}
 	return strings.Join(ipSli, ".")
+}
+
+//自增长时间
+func logTime() (string, string) {
+	now := time.Now()
+	timeFormat := "2006-01-02 15:04:05 PM Mon Jan"
+	nowString := now.Format(timeFormat)
+
+	return nowString, strconv.Itoa(int(now.Unix()))
 }
 
 //获取随机数
@@ -138,27 +168,60 @@ func randInt(min, max int) int {
 	return r.Intn(max-min) + min
 }
 
+func moveFileCron() {
+	i := 0
+	c := cron.New()
+	spec := "@every 10s"
+	_, err := c.AddFunc(spec, func() {
+		i++
+		fmt.Printf("format string %s \n", strconv.Itoa(i))
+		// os.Rename("./logfile/nginx_access.log", "./logfile/nginx_access_"+strconv.Itoa(i)+".log")
+	})
+
+	if err != nil {
+		fmt.Errorf("AddFunc error: %v \n", err)
+	}
+
+	c.Start()
+}
+
 func main() {
-	total := flag.Int("total", 100, "指定生成的行数")
-	filePath := flag.String("filePath", "./logfile/nginx_access.log", "日志文件位置")
+	randTotal := randInt(1, 3) // 默认在100-300随机
+	total := flag.Int("total", randTotal, "指定生成的行数")
+	filePath := "./logfile/nginx_access.log"
 	flag.Parse()
 
 	//构造真实网站的url
 	res := ruleResource() //调用方法生成
 	list := buildUrl(res)
 
-	//按照规定格式，一次性生成日志字符串
-	logStr := ""
-	for i := 1; i <= *total; i++ {
-		currentUrl := list[randInt(0, len(list)-1)]
-		referUrl := list[randInt(0, len(list)-1)]
-		ua := uaList[randInt(0, len(uaList)-1)]
-		logStr = logStr + makeLog(currentUrl, referUrl, ua) + "\n"
-		//ioutil.WriteFile(*filePath, []byte(logStr), 0644) //覆盖写
-	}
-	fd, _ := os.OpenFile(*filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	fd.Write([]byte(logStr))
-	fd.Close()
+	c := cron.New()
+	c.AddFunc("@every 2s", func() {
+		//按照规定格式，一次性生成日志字符串
+		logStr := ""
+		for i := 1; i <= *total; i++ {
+			currentUrl := list[randInt(0, len(list)-1)]
+			referUrl := list[randInt(0, len(list)-1)]
+			ua := uaList[randInt(0, len(uaList)-1)]
+			logStr = logStr + makeLog(currentUrl, referUrl, ua) + "\n"
+			//ioutil.WriteFile(*filePath, []byte(logStr), 0644) //覆盖写
+		}
+		fd, _ := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+		fd.Write([]byte(logStr))
+		fd.Close()
+		now := time.Now()
+		timeFormat := now.Format("2006-01-02 15:04:05")
 
-	fmt.Println("done \n")
+		fmt.Println(timeFormat + " time job down ")
+	})
+
+	c.AddFunc("@every 30s", func() {
+		now := time.Now()
+		timeFormat := now.Format("2006-01-02")
+		os.Rename("./logfile/nginx_access.log", "./logfile/nginx_access_"+timeFormat+".log")
+	})
+
+	c.Start()
+
+	select {}
 }
