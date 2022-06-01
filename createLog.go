@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -12,7 +13,7 @@ import (
 	"time"
 
 	"github.com/robfig/cron/v3"
-	//"io/ioutil"
+	"github.com/srlemon/gen-id/generator"
 )
 
 type resource struct {
@@ -112,29 +113,29 @@ func makeLog(current, refer, ua string) string {
 	logTimeStr, logTimeUnix := logTime()
 	log := ""
 	//"10.100.14.104 - - [19/Mar/2021 15:19:01 +0800] \"OPTIONS /nginx_access.log?{$paramsStr} HTTP/1.1\" 200 43 \"-\" \"{$ua}\" \"-\""
-	logFormatStr := "%s - - [%s  ++0800  --%s] \"OPTIONS /nginx_access.log? %s HTTP/1.1\" %d %s \"-\" \"%s\" \"-\""
+	logFormatStr := "%s - - [%s] \"OPTIONS /nginx_access.log? %s HTTP/1.1\" %d %s \"-\" \"%s\" \"-\""
 	randNum := randInt(1, 100)
 	switch {
 	case randNum%7 == 0:
 		//502,
-		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, logTimeUnix, "", http.StatusBadGateway, http.StatusText(http.StatusBadGateway), ua)
+		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, "", http.StatusBadGateway, http.StatusText(http.StatusBadGateway), ua)
 	case randNum%11 == 0:
 
-		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, logTimeUnix, "", http.StatusNotFound, http.StatusText(http.StatusNotFound), ua)
+		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, "", http.StatusNotFound, http.StatusText(http.StatusNotFound), ua)
 	case randNum%13 == 0:
-		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, logTimeUnix, "", http.StatusBadRequest, http.StatusText(http.StatusBadRequest), ua)
+		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, "", http.StatusBadRequest, http.StatusText(http.StatusBadRequest), ua)
 	default:
 		u := url.Values{}
 		u.Set("time", logTimeUnix)
 		u.Set("url", current)
 		u.Set("refer", refer)
-		u.Set("ua", ua)
+		// u.Set("ua", ua)
 		uid := randInt(100001, 999999)
 		// 模拟用户uid
 		u.Set("uid", strconv.Itoa(uid))
 		paramsStr := u.Encode()
 
-		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, logTimeUnix, paramsStr, http.StatusOK, http.StatusText(http.StatusOK), ua)
+		log = fmt.Sprintf(logFormatStr, randIpStr, logTimeStr, paramsStr, http.StatusOK, http.StatusText(http.StatusOK), ua)
 	}
 
 	return log
@@ -152,7 +153,7 @@ func randIP() string {
 //自增长时间
 func logTime() (string, string) {
 	now := time.Now()
-	timeFormat := "2006-01-02 15:04:05 PM Mon Jan"
+	timeFormat := "2006-01-02 15:04:05"
 	nowString := now.Format(timeFormat)
 
 	return nowString, strconv.Itoa(int(now.Unix()))
@@ -168,25 +169,8 @@ func randInt(min, max int) int {
 	return r.Intn(max-min) + min
 }
 
-func moveFileCron() {
-	i := 0
-	c := cron.New()
-	spec := "@every 10s"
-	_, err := c.AddFunc(spec, func() {
-		i++
-		fmt.Printf("format string %s \n", strconv.Itoa(i))
-		// os.Rename("./logfile/nginx_access.log", "./logfile/nginx_access_"+strconv.Itoa(i)+".log")
-	})
-
-	if err != nil {
-		fmt.Errorf("AddFunc error: %v \n", err)
-	}
-
-	c.Start()
-}
-
-func main() {
-	randTotal := randInt(1, 3) // 默认在100-300随机
+func startLogScript() {
+	randTotal := randInt(100, 300) // 默认在100-300随机
 	total := flag.Int("total", randTotal, "指定生成的行数")
 	filePath := "./logfile/nginx_access.log"
 	flag.Parse()
@@ -215,7 +199,7 @@ func main() {
 		fmt.Println(timeFormat + " time job down ")
 	})
 
-	c.AddFunc("@every 30s", func() {
+	c.AddFunc("@daily", func() {
 		now := time.Now()
 		timeFormat := now.Format("2006-01-02")
 		os.Rename("./logfile/nginx_access.log", "./logfile/nginx_access_"+timeFormat+".log")
@@ -224,4 +208,112 @@ func main() {
 	c.Start()
 
 	select {}
+}
+
+func main() {
+	// startLogScript()// 启动日志脚本
+
+	generateUserInfo() //启动用户姓名脚本
+
+}
+
+func generateUserName() {
+	var lastName = []string{
+		"赵", "钱", "孙", "李", "周", "吴", "郑", "王", "冯", "陈", "褚", "卫", "蒋",
+		"沈", "韩", "杨", "朱", "秦", "尤", "许", "何", "吕", "施", "张", "孔", "曹", "严", "华", "金", "魏",
+		"陶", "姜", "戚", "谢", "邹", "喻", "柏", "水", "窦", "章", "云", "苏", "潘", "葛", "奚", "范", "彭",
+		"郎", "鲁", "韦", "昌", "马", "苗", "凤", "花", "方", "任", "袁", "柳", "鲍", "史", "唐", "费", "薛",
+		"雷", "贺", "倪", "汤", "滕", "殷", "罗", "毕", "郝", "安", "常", "傅", "卞", "齐", "元", "顾", "孟",
+		"平", "黄", "穆", "萧", "尹", "姚", "邵", "湛", "汪", "祁", "毛", "狄", "米", "伏", "成", "戴", "谈",
+		"宋", "茅", "庞", "熊", "纪", "舒", "屈", "项", "祝", "董", "梁", "杜", "阮", "蓝", "闵", "季", "贾",
+		"路", "娄", "江", "童", "颜", "郭", "梅", "盛", "林", "钟", "徐", "邱", "骆", "高", "夏", "蔡", "田",
+		"樊", "胡", "凌", "霍", "虞", "万", "支", "柯", "管", "卢", "莫", "柯", "房", "裘", "缪", "解", "应",
+		"宗", "丁", "宣", "邓", "单", "杭", "洪", "包", "诸", "左", "石", "崔", "吉", "龚", "程", "嵇", "邢",
+		"裴", "陆", "荣", "翁", "荀", "于", "惠", "甄", "曲", "封", "储", "仲", "伊", "宁", "仇", "甘", "武",
+		"符", "刘", "景", "詹", "龙", "叶", "幸", "司", "黎", "溥", "印", "怀", "蒲", "邰", "从", "索", "赖",
+		"卓", "屠", "池", "乔", "胥", "闻", "莘", "党", "翟", "谭", "贡", "劳", "逄", "姬", "申", "扶", "堵",
+		"冉", "宰", "雍", "桑", "寿", "通", "燕", "浦", "尚", "农", "温", "别", "庄", "晏", "柴", "瞿", "阎",
+		"连", "习", "容", "向", "古", "易", "廖", "庾", "终", "步", "都", "耿", "满", "弘", "匡", "国", "文",
+		"寇", "广", "禄", "阙", "东", "欧", "利", "师", "巩", "聂", "关", "荆", "司马", "上官", "欧阳", "夏侯",
+		"诸葛", "闻人", "东方", "赫连", "皇甫", "尉迟", "公羊", "澹台", "公冶", "宗政", "濮阳", "淳于", "单于",
+		"太叔", "申屠", "公孙", "仲孙", "轩辕", "令狐", "徐离", "宇文", "长孙", "慕容", "司徒", "司空"}
+	var firstName = []string{
+		"伟", "刚", "勇", "毅", "俊", "峰", "强", "军", "平", "保", "东", "文", "辉", "力", "明", "永", "健", "世", "广", "志", "义",
+		"兴", "良", "海", "山", "仁", "波", "宁", "贵", "福", "生", "龙", "元", "全", "国", "胜", "学", "祥", "才", "发", "武", "新",
+		"利", "清", "飞", "彬", "富", "顺", "信", "子", "杰", "涛", "昌", "成", "康", "星", "光", "天", "达", "安", "岩", "中", "茂",
+		"进", "林", "有", "坚", "和", "彪", "博", "诚", "先", "敬", "震", "振", "壮", "会", "思", "群", "豪", "心", "邦", "承", "乐",
+		"绍", "功", "松", "善", "厚", "庆", "磊", "民", "友", "裕", "河", "哲", "江", "超", "浩", "亮", "政", "谦", "亨", "奇", "固",
+		"之", "轮", "翰", "朗", "伯", "宏", "言", "若", "鸣", "朋", "斌", "梁", "栋", "维", "启", "克", "伦", "翔", "旭", "鹏", "泽",
+		"晨", "辰", "士", "以", "建", "家", "致", "树", "炎", "德", "行", "时", "泰", "盛", "雄", "琛", "钧", "冠", "策", "腾", "楠",
+		"榕", "风", "航", "弘", "秀", "娟", "英", "华", "慧", "巧", "美", "娜", "静", "淑", "惠", "珠", "翠", "雅", "芝", "玉", "萍",
+		"红", "娥", "玲", "芬", "芳", "燕", "彩", "春", "菊", "兰", "凤", "洁", "梅", "琳", "素", "云", "莲", "真", "环", "雪", "荣",
+		"爱", "妹", "霞", "香", "月", "莺", "媛", "艳", "瑞", "凡", "佳", "嘉", "琼", "勤", "珍", "贞", "莉", "桂", "娣", "叶", "璧",
+		"璐", "娅", "琦", "晶", "妍", "茜", "秋", "珊", "莎", "锦", "黛", "青", "倩", "婷", "姣", "婉", "娴", "瑾", "颖", "露", "瑶",
+		"怡", "婵", "雁", "蓓", "纨", "仪", "荷", "丹", "蓉", "眉", "君", "琴", "蕊", "薇", "菁", "梦", "岚", "苑", "婕", "馨", "瑗",
+		"琰", "韵", "融", "园", "艺", "咏", "卿", "聪", "澜", "纯", "毓", "悦", "昭", "冰", "爽", "琬", "茗", "羽", "希", "欣", "飘",
+		"育", "滢", "馥", "筠", "柔", "竹", "霭", "凝", "晓", "欢", "霄", "枫", "芸", "菲", "寒", "伊", "亚", "宜", "可", "姬", "舒",
+		"影", "荔", "枝", "丽", "阳", "妮", "宝", "贝", "初", "程", "梵", "罡", "恒", "鸿", "桦", "骅", "剑", "娇", "纪", "宽", "苛",
+		"灵", "玛", "媚", "琪", "晴", "容", "睿", "烁", "堂", "唯", "威", "韦", "雯", "苇", "萱", "阅", "彦", "宇", "雨", "洋", "忠",
+		"宗", "曼", "紫", "逸", "贤", "蝶", "菡", "绿", "蓝", "儿", "翠", "烟", "小", "轩"}
+	var lastNameLen = len(lastName)
+	var firstNameLen = len(firstName)
+	rand.Seed(time.Now().UnixNano())     //设置随机数种子
+	var first string                     //名
+	for i := 0; i <= rand.Intn(1); i++ { //随机产生2位或者3位的名
+		first = fmt.Sprint(firstName[rand.Intn(firstNameLen-1)])
+	}
+	//返回姓名
+	fmt.Sprintf("%s%s", fmt.Sprint(lastName[rand.Intn(lastNameLen-1)]), first)
+
+}
+
+func generateUserInfo() {
+	// user info table
+	/*
+		CREATE TABLE IF NOT EXISTS user_info (
+			USER_ID BIGINT NOT NULL COMMENT "USER ID",
+			USER_NAME VARCHAR(20) NOT	NULL	COMMENT "USER NAME",
+			PHONE VARCHAR(20) NOT NULL COMMENT "USER PHONE NUMBER",
+			EMAIL VARCHAR(50) COMMENT "USER EMAIL ADDRESS",
+			ADDRESS VARCHAR(500) COMMENT "USER ADDRESS"
+		)
+		PRIMARY KEY (USER_ID)
+		DISTRIBUTED BY HASH(USER_ID) BUCKETS 1
+		PROPERTIES("replication_num" = "1");
+
+	*/
+	/*
+		// 生成总的信息
+		// fmt.Println(gen_id.NewGeneratorData())
+		// 分个单独获取
+		g := new(generator.GeneratorData)
+		fmt.Println(g.GeneratorPhone())
+		fmt.Println(g.GeneratorName())
+		fmt.Println(g.GeneratorIDCart())
+		fmt.Println(g.GeneratorEmail())
+		fmt.Println(g.GeneratorBankID())
+		fmt.Println(g.GeneratorAddress())
+	*/
+	/*
+	   	INSERT INTO insert_wiki_edit VALUES
+	       ("2015-09-12 00:00:00","#en.wikipedia","GELongstreet",0,0,0,0,0,36,36,0),
+	       ("2015-09-12 00:00:00","#ca.wikipedia","PereBot",0,1,0,1,0,17,17,0);
+	*/
+
+	// sqlStr := "TRUNCATE table user_info;\n"
+	// sqlFormat := "INSERT INTO user_info VALUES (\"%d\",\"%s\",\"%s\",\"%s\",\"%s\");\n"
+
+	filePath := "./db/sql.csv"
+	fd, _ := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	bufWriter := csv.NewWriter(fd)
+	var csvSli []string = nil
+	// 生成用户信息
+	for i := 100001; i <= 999999; i++ {
+		g := new(generator.GeneratorData)
+		csvSli = append(append(append(append(append(csvSli, strconv.Itoa(i)), g.GeneratorName()), g.GeneratorPhone()), g.GeneratorEmail()), g.GeneratorAddress())
+		bufWriter.Write(csvSli)
+		csvSli = csvSli[:0]
+	}
+	bufWriter.Flush()
+	fd.Close()
 }
