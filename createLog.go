@@ -200,7 +200,7 @@ func startLogScript() {
 	})
 
 	c.AddFunc("@daily", func() {
-		now := time.Now()
+		now := time.Now().AddDate(0, 0, -1)
 		timeFormat := now.Format("2006-01-02")
 		os.Rename("./logfile/nginx_access.log", "./logfile/nginx_access_"+timeFormat+".log")
 	})
@@ -211,9 +211,9 @@ func startLogScript() {
 }
 
 func main() {
-	// startLogScript()// 启动日志脚本
+	startLogScript() // 启动日志脚本
 
-	generateUserInfo() //启动用户姓名脚本
+	// generateUserInfo() //启动用户姓名脚本
 
 }
 
