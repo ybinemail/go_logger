@@ -268,20 +268,6 @@ func generateUserName() {
 }
 
 func generateUserInfo() {
-	// user info table
-	/*
-		CREATE TABLE IF NOT EXISTS user_info (
-			USER_ID BIGINT NOT NULL COMMENT "USER ID",
-			USER_NAME VARCHAR(20) NOT	NULL	COMMENT "USER NAME",
-			PHONE VARCHAR(20) NOT NULL COMMENT "USER PHONE NUMBER",
-			EMAIL VARCHAR(50) COMMENT "USER EMAIL ADDRESS",
-			ADDRESS VARCHAR(500) COMMENT "USER ADDRESS"
-		)
-		PRIMARY KEY (USER_ID)
-		DISTRIBUTED BY HASH(USER_ID) BUCKETS 1
-		PROPERTIES("replication_num" = "1");
-
-	*/
 	/*
 		// 生成总的信息
 		// fmt.Println(gen_id.NewGeneratorData())
